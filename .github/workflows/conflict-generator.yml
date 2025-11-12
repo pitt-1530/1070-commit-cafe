@@ -1,0 +1,76 @@
+name: Auto Conflict Generator
+
+on:
+  push:
+    branches:
+      - "**"          # run on every branch push
+
+permissions:
+  contents: write
+
+jobs:
+  inject_conflict:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Gather metadata
+        id: meta
+        run: |
+          BRANCH=${GITHUB_REF#refs/heads/}
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "actor=$GITHUB_ACTOR" >> $GITHUB_OUTPUT
+          echo "Actor: $GITHUB_ACTOR"
+          echo "Branch: $BRANCH"
+
+      - name: Skip main and gh-pages
+        run: |
+          if [[ "${{ steps.meta.outputs.branch }}" == "main" || \
+                "${{ steps.meta.outputs.branch }}" == "gh-pages" ]]; then
+            echo "Skipping system branch."
+            exit 78
+          fi
+
+      - name: Configure git
+        run: |
+          git config user.name  "Conflict Bot"
+          git config user.email "conflict-bot@example.com"
+
+      - name: Inject random coffee pun into CommitCafe.java
+        run: |
+          echo "Running injector for branch ${{ steps.meta.outputs.branch }}"
+
+          # Run the injection script
+          python3 .github/scripts/inject.py
+
+          # If file changed, commit and push
+          if ! git diff --quiet; then
+            git add CommitCafe.java
+            git commit -m "Inject random coffee pun via GitHub Actions"
+            git push origin "HEAD:${{ steps.meta.outputs.branch }}"
+          else
+            echo "No new pun injected — file unchanged."
+          fi
+
+      - name: Inject conflicting pun into main
+        run: |
+          echo "Injecting conflicting pun into main branch to guarantee divergence..."
+          git fetch origin main
+          git checkout origin/main -b temp-main
+          python3 .github/scripts/inject.py
+          if ! git diff --quiet; then
+            git add CommitCafe.java
+            git commit -m "Main: conflicting coffee pun"
+            git push origin temp-main:main
+          else
+            echo "No diff detected for main."
+          fi
+
+      - name: Show latest commits
+        run: |
+          git --no-pager log -3 --oneline --decorate --graph

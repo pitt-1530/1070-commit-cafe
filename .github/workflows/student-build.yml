@@ -1,0 +1,33 @@
+# .github/workflows/compile-CommitCafe.yml
+name: CommitCafe Compile Check
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Compile CommitCafe.java
+        run: |
+          echo "Compiling CommitCafe.java on branch: ${{ github.ref_name }}"
+          mkdir -p out
+          if [ -f CommitCafe.java ]; then
+            javac -d out CommitCafe.java
+          else
+            echo "Error: CommitCafe.java not found"
+            exit 1
+          fi
+
